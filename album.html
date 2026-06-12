@@ -320,6 +320,146 @@ function escapeHtml(text){
     .replaceAll("&","&amp;")
     .replaceAll("<","&lt;")
     .replaceAll(">","&gt;")
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getDatabase,
+  ref,
+  push,
+  set,
+  update,
+  remove,
+  onValue
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDTblb_F8TYSloI-WcKrXGCtQdDFFGTx3k",
+  authDomain: "hutari-3a6c1.firebaseapp.com",
+  databaseURL: "https://hutari-3a6c1-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "hutari-3a6c1",
+  storageBucket: "hutari-3a6c1.firebasestorage.app",
+  messagingSenderId: "637601321157",
+  appId: "1:637601321157:web:93c60f5dc40ba66c61a0ac",
+  measurementId: "G-GJ45GRHSJ0"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const photosRef = ref(db, "photos");
+
+let favoritesOnly = false;
+let allPhotos = [];
+
+window.addPhoto = function(){
+  const file =
+  document.getElementById("photoInput").files[0];
+
+  if(!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = function(e){
+    const newPhotoRef = push(photosRef);
+
+    set(newPhotoRef,{
+      image:e.target.result,
+      comment:document.getElementById("commentInput").value,
+      favorite:false,
+      createdAt:Date.now()
+    });
+
+    document.getElementById("photoInput").value = "";
+    document.getElementById("commentInput").value = "";
+
+    createHearts();
+  };
+
+  reader.readAsDataURL(file);
+};
+
+function renderPhotos(){
+  const album =
+  document.getElementById("album");
+
+  album.innerHTML = "";
+
+  const photosToShow =
+  favoritesOnly
+  ? allPhotos.filter(photo=>photo.favorite)
+  : allPhotos;
+
+  if(photosToShow.length === 0){
+    album.innerHTML =
+    '<p style="color:#999;text-align:center;">写真はまだありません♡</p>';
+    return;
+  }
+
+  photosToShow.forEach((photo)=>{
+    album.innerHTML += `
+      <div class="photo-card">
+        <img src="${photo.image}" onclick="openPreview('${photo.image}')">
+
+        <div class="comment">
+          ${escapeHtml(photo.comment || "")}
+        </div>
+
+        <div class="actions">
+          <button class="favorite" onclick="toggleFavorite('${photo.key}', ${photo.favorite})">
+            ${photo.favorite ? "⭐" : "☆"}
+          </button>
+
+          <button class="delete" onclick="deletePhoto('${photo.key}')">
+            🗑️
+          </button>
+        </div>
+      </div>
+    `;
+  });
+}
+
+window.toggleFavorite = function(key,current){
+  update(ref(db,"photos/" + key),{
+    favorite:!current
+  });
+};
+
+window.deletePhoto = function(key){
+  if(!confirm("削除する？")) return;
+
+  remove(ref(db,"photos/" + key));
+};
+
+window.toggleFavorites = function(){
+  favoritesOnly = !favoritesOnly;
+
+  const btn =
+  document.getElementById("favoriteFilterBtn");
+
+  if(favoritesOnly){
+    btn.classList.add("filter-active");
+    btn.innerHTML = "⭐ お気に入り表示中";
+  }else{
+    btn.classList.remove("filter-active");
+    btn.innerHTML = "☆ お気に入りのみ表示";
+  }
+
+  renderPhotos();
+};
+
+window.openPreview = function(src){
+  document.getElementById("preview").style.display = "flex";
+  document.getElementById("previewImg").src = src;
+};
+
+window.closePreview = function(){
+  document.getElementById("preview").style.display = "none";
+};
+
+function escapeHtml(text){
+  return String(text || "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
     .replaceAll('"',"&quot;")
     .replaceAll("'","&#039;");
 }
@@ -364,7 +504,23 @@ function createHearts(){
   }
 }
 
-loadPhotos();
+onValue(photosRef,(snapshot)=>{
+  const data = snapshot.val() || {};
+
+  allPhotos =
+  Object.keys(data).map(key=>{
+    return {
+      key:key,
+      ...data[key]
+    };
+  });
+
+  allPhotos.sort((a,b)=>{
+    return (b.createdAt || 0) - (a.createdAt || 0);
+  });
+
+  renderPhotos();
+});
 </script>
 
 </body>
