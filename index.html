@@ -1,0 +1,361 @@
+<!DOCTYPE html><html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>ふたりの秘密基地</title><style>
+body{
+    font-family:sans-serif;
+    min-height:100vh;
+    padding:15px;
+    color:#444;
+    overflow-x:hidden;
+
+    background:
+    linear-gradient(
+    180deg,
+    #ffd6e8,
+    #ffe8f2,
+    #fff5fa
+    );
+}
+
+h1,h2{
+    text-align:center;
+}
+
+h1{
+    color:#ff4f92;
+}
+
+h2{
+    color:#ff6ba6;
+}
+
+.center{
+    text-align:center;
+}
+
+.glass{
+    background:rgba(255,255,255,0.55);
+    backdrop-filter:blur(10px);
+    border:2px solid rgba(255,255,255,0.8);
+    border-radius:25px;
+    padding:25px;
+    margin-top:70px;
+    box-shadow:0 8px 25px rgba(255,105,180,0.25);
+}
+
+.card{
+    background:rgba(255,255,255,0.85);
+    backdrop-filter:blur(8px);
+    padding:15px;
+    margin-top:15px;
+    border-radius:25px;
+    border:2px solid rgba(255,255,255,0.7);
+    box-shadow:0 8px 25px rgba(255,105,180,0.2);
+}
+
+button{
+    padding:10px 15px;
+    border:none;
+    border-radius:12px;
+    background:linear-gradient(45deg,#ff7eb3,#ff4f92);
+    color:white;
+    font-size:16px;
+    box-shadow:0 4px 10px rgba(255,105,180,0.3);
+}
+
+button:active{
+    transform:scale(0.95);
+}
+
+input{
+    padding:10px;
+    font-size:16px;
+    border-radius:12px;
+    border:1px solid #ffb6d5;
+}
+
+textarea{
+    width:95%;
+    height:120px;
+    border-radius:12px;
+    border:1px solid #ffb6d5;
+    padding:10px;
+    font-size:16px;
+}
+
+.diary{
+    background:#fff5f8;
+    padding:10px;
+    margin-top:10px;
+    border-radius:15px;
+    white-space:pre-wrap;
+}
+
+.heart{
+    position:fixed;
+    bottom:-50px;
+    font-size:24px;
+    animation:floatUp linear infinite;
+    opacity:0.7;
+    pointer-events:none;
+}
+
+.flyHeart{
+    position:fixed;
+    font-size:28px;
+    animation:popHeart 1s ease-out forwards;
+    pointer-events:none;
+}
+
+.confetti{
+    position:fixed;
+    top:-20px;
+    font-size:22px;
+    animation:fall 3s linear forwards;
+    pointer-events:none;
+}
+
+@keyframes floatUp{
+    0%{
+        transform:translateY(0) rotate(0deg);
+        opacity:0;
+    }
+    20%{
+        opacity:0.8;
+    }
+    100%{
+        transform:translateY(-120vh) rotate(360deg);
+        opacity:0;
+    }
+}
+
+@keyframes popHeart{
+    0%{
+        transform:scale(0.5);
+        opacity:1;
+    }
+    100%{
+        transform:translateY(-120px) scale(1.8);
+        opacity:0;
+    }
+}
+
+@keyframes fall{
+    0%{
+        transform:translateY(0) rotate(0deg);
+        opacity:1;
+    }
+    100%{
+        transform:translateY(110vh) rotate(360deg);
+        opacity:0;
+    }
+}
+</style></head><body><div id="passwordScreen" class="center glass"><h1>🔒 ふたりの秘密基地</h1>
+<p>合言葉を入力してね♡</p><input type="password" id="passwordInput"><br><br>
+
+<button onclick="checkPassword()">入る♡</button>
+
+</div><div id="login" class="center glass" style="display:none;"><h1>💕 ふたりの秘密基地</h1>
+<p>あなたはどっち？</p><button onclick="login('ゆうき')">ゆうき</button>
+<button onclick="login('さき')">さき</button>
+
+</div><div id="main" style="display:none;"><h1>💕 ふたりの秘密基地</h1>
+<p id="welcome" class="center"></p><div class="card">
+<h2>🎂 記念日</h2>
+<p id="days"></p>
+</div><div class="card">
+<h2>💕 好きカウンター</h2>
+<p id="loveCount">0</p>
+<button onclick="addLove(event)">好き♡</button>
+</div><div class="card">
+<h2>💌 交換日記</h2><textarea id="diaryText" placeholder="今日の気持ちを書く♡"></textarea><br><br>
+
+<button onclick="saveDiary(event)">日記を投稿</button>
+
+<div id="diaryList"></div>
+</div></div><script>
+function checkPassword(){
+    const pass =
+    document.getElementById("passwordInput").value;
+
+    if(pass.toUpperCase() === "YS"){
+        document.getElementById("passwordScreen").style.display = "none";
+        document.getElementById("login").style.display = "block";
+    }else{
+        alert("合言葉が違うよ♡");
+    }
+}
+
+let currentUser = "";
+
+function login(name){
+    currentUser = name;
+
+    document.getElementById("login").style.display = "none";
+    document.getElementById("main").style.display = "block";
+
+    document.getElementById("welcome").innerText =
+    "おかえり、" + name + "♡";
+}
+
+const startDate = new Date("2025-12-15");
+const today = new Date();
+
+const diff =
+Math.floor((today - startDate) / (1000*60*60*24));
+
+document.getElementById("days").innerText =
+"付き合って " + diff + " 日♡";
+
+if(diff === 182 || diff === 365){
+    startConfetti();
+}
+
+let loveCount =
+localStorage.getItem("loveCount") || 0;
+
+document.getElementById("loveCount").innerText =
+loveCount + " 好き♡";
+
+function addLove(event){
+    loveCount++;
+
+    localStorage.setItem("loveCount", loveCount);
+
+    document.getElementById("loveCount").innerText =
+    loveCount + " 好き♡";
+
+    popHeart(event.clientX, event.clientY, "💖");
+}
+
+function saveDiary(event){
+    const text =
+    document.getElementById("diaryText").value;
+
+    if(text === ""){
+        return;
+    }
+
+    let diaries =
+    JSON.parse(localStorage.getItem("diaries") || "[]");
+
+    const date =
+    new Date().toLocaleDateString("ja-JP");
+
+    diaries.unshift(
+        date + "\n" +
+        currentUser + "：\n" +
+        text
+    );
+
+    localStorage.setItem(
+        "diaries",
+        JSON.stringify(diaries)
+    );
+
+    document.getElementById("diaryText").value = "";
+
+    showDiaries();
+
+    for(let i=0; i<8; i++){
+        setTimeout(function(){
+            popHeart(
+                event.clientX + Math.random()*80 - 40,
+                event.clientY + Math.random()*80 - 40,
+                "💕"
+            );
+        }, i*80);
+    }
+}
+
+function showDiaries(){
+    const area =
+    document.getElementById("diaryList");
+
+    area.innerHTML = "";
+
+    const diaries =
+    JSON.parse(localStorage.getItem("diaries") || "[]");
+
+    diaries.forEach(function(d){
+        const div =
+        document.createElement("div");
+
+        div.className = "diary";
+        div.innerText = d;
+
+        area.appendChild(div);
+    });
+}
+
+function createHeart(){
+    const heart =
+    document.createElement("div");
+
+    heart.className = "heart";
+    heart.innerHTML = "💖";
+
+    heart.style.left =
+    Math.random()*100 + "vw";
+
+    heart.style.fontSize =
+    (18 + Math.random()*24) + "px";
+
+    heart.style.animationDuration =
+    (6 + Math.random()*8) + "s";
+
+    document.body.appendChild(heart);
+
+    setTimeout(function(){
+        heart.remove();
+    },15000);
+}
+
+function popHeart(x,y,mark){
+    const heart =
+    document.createElement("div");
+
+    heart.className = "flyHeart";
+    heart.innerHTML = mark;
+
+    heart.style.left = x + "px";
+    heart.style.top = y + "px";
+
+    document.body.appendChild(heart);
+
+    setTimeout(function(){
+        heart.remove();
+    },1000);
+}
+
+function startConfetti(){
+    for(let i=0; i<40; i++){
+        setTimeout(function(){
+            const c =
+            document.createElement("div");
+
+            c.className = "confetti";
+            c.innerHTML =
+            ["💖","💕","🌸","✨","🎉"][Math.floor(Math.random()*5)];
+
+            c.style.left =
+            Math.random()*100 + "vw";
+
+            c.style.animationDuration =
+            (2 + Math.random()*2) + "s";
+
+            document.body.appendChild(c);
+
+            setTimeout(function(){
+                c.remove();
+            },4000);
+        }, i*80);
+    }
+}
+
+showDiaries();
+
+setInterval(createHeart, 900);
+</script></body>
+</html>
