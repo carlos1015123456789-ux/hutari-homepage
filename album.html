@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>アルバム</title>
+
+<style>
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  font-family:sans-serif;
+  background:linear-gradient(180deg,#fff1f6,#ffe6ef);
+  color:#333;
+  overflow-x:hidden;
+}
+
+.heart-bg{
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  overflow:hidden;
+  z-index:0;
+}
+
+.heart{
+  position:absolute;
+  color:rgba(255,105,150,.35);
+  font-size:24px;
+  animation:floatHeart 10s linear infinite;
+}
+
+@keyframes floatHeart{
+  0%{transform:translateY(100vh) scale(.8);opacity:0}
+  15%{opacity:1}
+  100%{transform:translateY(-120px) scale(1.5);opacity:0}
+}
+
+header{
+  position:relative;
+  z-index:1;
+  background:linear-gradient(135deg,#ff9db8,#ff76a3);
+  color:white;
+  text-align:center;
+  padding:18px;
+  font-size:26px;
+  font-weight:bold;
+}
+
+.container{
+  position:relative;
+  z-index:1;
+  max-width:900px;
+  margin:auto;
+  padding:12px;
+}
+
+.card{
+  background:rgba(255,255,255,.92);
+  border-radius:22px;
+  padding:16px;
+  margin-bottom:12px;
+  box-shadow:0 6px 18px rgba(255,120,160,.15);
+}
+
+button{
+  border:none;
+  border-radius:15px;
+  padding:10px 18px;
+  background:linear-gradient(135deg,#ff8fab,#ff5f93);
+  color:white;
+  cursor:pointer;
+  font-size:16px;
+}
+
+input[type="text"]{
+  width:100%;
+  padding:10px;
+  border-radius:12px;
+  border:1px solid #ddd;
+  margin-top:10px;
+}
+
+.filter-active{
+  background:linear-gradient(135deg,#ffd700,#ffb700) !important;
+  color:#333;
+  animation:pulse 1s infinite;
+}
+
+@keyframes pulse{
+  0%{transform:scale(1)}
+  50%{transform:scale(1.05)}
+  100%{transform:scale(1)}
+}
+
+.album-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(250px,1fr));
+  gap:12px;
+}
+
+.photo-card{
+  background:#fff7fa;
+  border-radius:18px;
+  padding:10px;
+}
+
+.photo-card img{
+  width:100%;
+  border-radius:12px;
+  cursor:pointer;
+}
+
+.comment{
+  margin:10px 0;
+  white-space:pre-wrap;
+}
+
+.actions{
+  display:flex;
+  justify-content:space-between;
+  gap:6px;
+}
+
+.favorite{
+  background:#ffcc66;
+  color:#333;
+}
+
+.delete{
+  background:#ccc;
+  color:#333;
+}
+
+.preview{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.8);
+  display:none;
+  justify-content:center;
+  align-items:center;
+  z-index:9999;
+}
+
+.preview img{
+  max-width:90%;
+  max-height:90%;
+  border-radius:15px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="heart-bg">
+  <div class="heart" style="left:5%;animation-delay:0s;">♡</div>
+  <div class="heart" style="left:20%;animation-delay:2s;">❤</div>
+  <div class="heart" style="left:40%;animation-delay:4s;">♡</div>
+  <div class="heart" style="left:60%;animation-delay:1s;">❤</div>
+  <div class="heart" style="left:80%;animation-delay:3s;">♡</div>
+</div>
+
+<header>📷 アルバム</header>
+
+<div class="container">
+
+<a href="index.html">
+  <button>🏠 ホームへ戻る</button>
+</a>
+
+<div class="card">
+  <h2>写真を追加</h2>
+
+  <input type="file" id="photoInput" accept="image/*">
+
+  <input type="text" id="commentInput" placeholder="コメントを書こう♡">
+
+  <br><br>
+
+  <button onclick="addPhoto()">追加する</button>
+</div>
+
+<div class="card">
+  <button id="favoriteFilterBtn" onclick="toggleFavorites()">
+    ☆ お気に入りのみ表示
+  </button>
+</div>
+
+<div class="card">
+  <div id="album" class="album-grid"></div>
+</div>
+
+</div>
+
+<div class="preview" id="preview" onclick="closePreview()">
+  <img id="previewImg">
+</div>
+
+<script>
+let favoritesOnly = false;
+
+function addPhoto(){
+  const file =
+  document.getElementById("photoInput").files[0];
+
+  if(!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = function(e){
+    const photos =
+    JSON.parse(localStorage.getItem("photos") || "[]");
+
+    photos.unshift({
+      image:e.target.result,
+      comment:document.getElementById("commentInput").value,
+      favorite:false
+    });
+
+    localStorage.setItem("photos",JSON.stringify(photos));
+
+    document.getElementById("photoInput").value = "";
+    document.getElementById("commentInput").value = "";
+
+    createHearts();
+    loadPhotos();
+  };
+
+  reader.readAsDataURL(file);
+}
+
+function loadPhotos(){
+  const photos =
+  JSON.parse(localStorage.getItem("photos") || "[]");
+
+  const album =
+  document.getElementById("album");
+
+  album.innerHTML = "";
+
+  photos.forEach((photo,index)=>{
+    if(favoritesOnly && !photo.favorite) return;
+
+    album.innerHTML += `
+      <div class="photo-card">
+        <img src="${photo.image}" onclick="openPreview('${photo.image}')">
+
+        <div class="comment">
+          ${escapeHtml(photo.comment || "")}
+        </div>
+
+        <div class="actions">
+          <button class="favorite" onclick="toggleFavorite(${index})">
+            ${photo.favorite ? "⭐" : "☆"}
+          </button>
+
+          <button class="delete" onclick="deletePhoto(${index})">
+            🗑️
+          </button>
+        </div>
+      </div>
+    `;
+  });
+}
+
+function toggleFavorite(index){
+  const photos =
+  JSON.parse(localStorage.getItem("photos") || "[]");
+
+  photos[index].favorite =
+  !photos[index].favorite;
+
+  localStorage.setItem("photos",JSON.stringify(photos));
+
+  loadPhotos();
+}
+
+function deletePhoto(index){
+  if(!confirm("削除する？")) return;
+
+  const photos =
+  JSON.parse(localStorage.getItem("photos") || "[]");
+
+  photos.splice(index,1);
+
+  localStorage.setItem("photos",JSON.stringify(photos));
+
+  loadPhotos();
+}
+
+function toggleFavorites(){
+  favoritesOnly = !favoritesOnly;
+
+  const btn =
+  document.getElementById("favoriteFilterBtn");
+
+  if(favoritesOnly){
+    btn.classList.add("filter-active");
+    btn.innerHTML = "⭐ お気に入り表示中";
+  }else{
+    btn.classList.remove("filter-active");
+    btn.innerHTML = "☆ お気に入りのみ表示";
+  }
+
+  loadPhotos();
+}
+
+function openPreview(src){
+  document.getElementById("preview").style.display = "flex";
+  document.getElementById("previewImg").src = src;
+}
+
+function closePreview(){
+  document.getElementById("preview").style.display = "none";
+}
+
+function escapeHtml(text){
+  return text
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+function createHearts(){
+  for(let i=0;i<15;i++){
+    const heart = document.createElement("div");
+
+    heart.innerHTML =
+    ["💖","💕","❤","✨"]
+    [Math.floor(Math.random()*4)];
+
+    heart.style.position = "fixed";
+    heart.style.left = "50%";
+    heart.style.top = "50%";
+    heart.style.fontSize = (18+Math.random()*20)+"px";
+    heart.style.zIndex = "9999";
+    heart.style.pointerEvents = "none";
+
+    document.body.appendChild(heart);
+
+    const x = (Math.random()-0.5)*300;
+    const y = -(80+Math.random()*250);
+
+    heart.animate([
+      {
+        transform:"translate(-50%,-50%)",
+        opacity:1
+      },
+      {
+        transform:`translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`,
+        opacity:0
+      }
+    ],{
+      duration:1500,
+      easing:"ease-out"
+    });
+
+    setTimeout(()=>{
+      heart.remove();
+    },1500);
+  }
+}
+
+loadPhotos();
+</script>
+
+</body>
+</html>
