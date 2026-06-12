@@ -207,48 +207,63 @@ button:hover{
 
 </div>
 
-<script>
+.<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getDatabase,
+  ref,
+  push,
+  set,
+  remove,
+  onValue
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDTblb_F8TYSloI-WcKrXGCtQdDFFGTx3k",
+  authDomain: "hutari-3a6c1.firebaseapp.com",
+  databaseURL: "https://hutari-3a6c1-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "hutari-3a6c1",
+  storageBucket: "hutari-3a6c1.firebasestorage.app",
+  messagingSenderId: "637601321157",
+  appId: "1:637601321157:web:93c60f5dc40ba66c61a0ac",
+  measurementId: "G-GJ45GRHSJ0"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const diariesRef = ref(db, "diaries");
+
 const currentUser =
 localStorage.getItem("userName") || "名無し";
 
-function saveDiary(){
+window.saveDiary = function(){
   const text =
   document.getElementById("diaryText").value.trim();
 
   if(text === "") return;
 
-  const diaries =
-  JSON.parse(localStorage.getItem("diaries") || "[]");
+  const newDiaryRef = push(diariesRef);
 
-  diaries.unshift({
+  set(newDiaryRef,{
     user: currentUser,
     date: new Date().toLocaleString("ja-JP"),
-    text: text
+    text: text,
+    createdAt: Date.now()
   });
-
-  localStorage.setItem("diaries", JSON.stringify(diaries));
 
   document.getElementById("diaryText").value = "";
 
-  loadDiaries();
   createHearts();
-}
+};
 
-function deleteDiary(index){
+window.deleteDiary = function(key){
   if(!confirm("この日記を削除する？")) return;
 
-  const diaries =
-  JSON.parse(localStorage.getItem("diaries") || "[]");
-
-  diaries.splice(index, 1);
-
-  localStorage.setItem("diaries", JSON.stringify(diaries));
-
-  loadDiaries();
-}
+  remove(ref(db, "diaries/" + key));
+};
 
 function escapeHtml(text){
-  return text
+  return String(text || "")
     .replaceAll("&","&amp;")
     .replaceAll("<","&lt;")
     .replaceAll(">","&gt;")
@@ -256,10 +271,7 @@ function escapeHtml(text){
     .replaceAll("'","&#039;");
 }
 
-function loadDiaries(){
-  const diaries =
-  JSON.parse(localStorage.getItem("diaries") || "[]");
-
+function loadDiaries(diaries){
   const container =
   document.getElementById("entries");
 
@@ -271,19 +283,37 @@ function loadDiaries(){
 
   container.innerHTML = "";
 
-  diaries.forEach((diary,index)=>{
+  diaries.forEach((diary)=>{
     container.innerHTML += `
       <div class="entry">
         <div class="name">${escapeHtml(diary.user)}</div>
         <div class="date">${escapeHtml(diary.date)}</div>
         <p>${escapeHtml(diary.text)}</p>
-        <button class="delete-btn" onclick="deleteDiary(${index})">
+        <button class="delete-btn" onclick="deleteDiary('${diary.key}')">
           🗑️ 削除
         </button>
       </div>
     `;
   });
 }
+
+onValue(diariesRef,(snapshot)=>{
+  const data = snapshot.val() || {};
+
+  const diaries =
+  Object.keys(data).map(key=>{
+    return {
+      key:key,
+      ...data[key]
+    };
+  });
+
+  diaries.sort((a,b)=>{
+    return (b.createdAt || 0) - (a.createdAt || 0);
+  });
+
+  loadDiaries(diaries);
+});
 
 function createHearts(){
   for(let i=0;i<18;i++){
@@ -326,8 +356,6 @@ function createHearts(){
     },1400);
   }
 }
-
-loadDiaries();
 </script>
 
 </body>
