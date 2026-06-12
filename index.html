@@ -15,17 +15,10 @@ h1,h2{
     text-align:center;
 }
 
-h1{
-    color:#ff4f92;
-}
+h1{color:#ff4f92;}
+h2{color:#ff6ba6;}
 
-h2{
-    color:#ff6ba6;
-}
-
-.center{
-    text-align:center;
-}
+.center{text-align:center;}
 
 .glass,.card{
     background:rgba(255,255,255,0.75);
@@ -56,9 +49,7 @@ button{
     margin:4px;
 }
 
-button:active{
-    transform:scale(0.95);
-}
+button:active{transform:scale(0.95);}
 
 input,textarea{
     border-radius:12px;
@@ -73,19 +64,12 @@ textarea{
     height:120px;
 }
 
-.diary{
+.diary,.photoCard{
     background:#fff5f8;
     padding:10px;
     margin-top:10px;
     border-radius:15px;
     white-space:pre-wrap;
-}
-
-.photoCard{
-    background:#fff5f8;
-    padding:10px;
-    margin-top:12px;
-    border-radius:15px;
 }
 
 .photoCard img{
@@ -151,14 +135,43 @@ textarea{
 <button onclick="saveDiary(event)">日記を投稿</button>
 <div id="diaryList"></div>
 </div><div class="card">
-<h2>📷 思い出アルバム</h2><input type="file" id="photoInput" accept="image/*">
-<br><br><textarea id="photoComment" placeholder="写真のコメントを書く♡"></textarea><br><br>
-
+<h2>📷 思い出アルバム</h2>
+<input type="file" id="photoInput" accept="image/*">
+<br><br>
+<textarea id="photoComment" placeholder="写真のコメントを書く♡"></textarea>
+<br><br>
 <button onclick="savePhoto(event)">写真を投稿</button>
+<p class="small">※写真は小さくしてFirebaseに保存するよ</p>
+<div id="photoList"></div>
+</div></div><script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
 
-<p class="small">※今はこのスマホのブラウザ内に保存されるよ</p><div id="photoList"></div>
-</div></div><script>
-function checkPassword(){
+import {
+    getDatabase,
+    ref,
+    onValue,
+    push,
+    remove,
+    runTransaction
+} from "https://www.gstatic.com/firebasejs/12.14.0/firebase-database.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyDTblb_F8TYSloI-WcKrXGCtQdDFFGTx3k",
+    authDomain: "hutari-3a6c1.firebaseapp.com",
+    databaseURL: "https://hutari-3a6c1-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "hutari-3a6c1",
+    storageBucket: "hutari-3a6c1.firebasestorage.app",
+    messagingSenderId: "637601321157",
+    appId: "1:637601321157:web:93c60f5dc40ba66c61a0ac"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+let currentUser = "";
+
+/* パスワード */
+window.checkPassword = function(){
     const pass = document.getElementById("passwordInput").value;
 
     if(pass.toUpperCase() === "YS"){
@@ -167,19 +180,20 @@ function checkPassword(){
     }else{
         alert("合言葉が違うよ♡");
     }
-}
+};
 
-let currentUser = "";
-
-function login(name){
+/* ログイン */
+window.login = function(name){
     currentUser = name;
+
     document.getElementById("login").style.display = "none";
     document.getElementById("main").style.display = "block";
 
     document.getElementById("welcome").innerText =
     "おかえり、" + name + "♡";
-}
+};
 
+/* 記念日 */
 const startDate = new Date("2025-12-15");
 const today = new Date();
 
@@ -189,24 +203,28 @@ Math.floor((today - startDate) / (1000*60*60*24));
 document.getElementById("days").innerText =
 "付き合って " + diff + " 日♡";
 
-let loveCount =
-localStorage.getItem("loveCount") || 0;
+/* 好きカウンター Firebase */
+const loveRef = ref(db,"loveCount");
 
-document.getElementById("loveCount").innerText =
-loveCount + " 好き♡";
-
-function addLove(event){
-    loveCount++;
-
-    localStorage.setItem("loveCount", loveCount);
+onValue(loveRef,function(snapshot){
+    const count = snapshot.val() || 0;
 
     document.getElementById("loveCount").innerText =
-    loveCount + " 好き♡";
+    count + " 好き♡";
+});
+
+window.addLove = function(event){
+    runTransaction(loveRef,function(current){
+        return (current || 0) + 1;
+    });
 
     popHeart(event.clientX,event.clientY,"💖");
-}
+};
 
-function saveDiary(event){
+/* 交換日記 Firebase */
+const diariesRef = ref(db,"diaries");
+
+window.saveDiary = function(event){
     const text = document.getElementById("diaryText").value;
 
     if(text === ""){
@@ -214,42 +232,61 @@ function saveDiary(event){
         return;
     }
 
-    let diaries =
-    JSON.parse(localStorage.getItem("diaries") || "[]");
-
     const date =
     new Date().toLocaleDateString("ja-JP");
 
-    diaries.unshift(
-        date + "\n" +
-        currentUser + "：\n" +
-        text
-    );
-
-    localStorage.setItem("diaries",JSON.stringify(diaries));
+    push(diariesRef,{
+        user:currentUser,
+        text:text,
+        date:date,
+        time:Date.now()
+    });
 
     document.getElementById("diaryText").value = "";
 
-    showDiaries();
     burstHeart(event.clientX,event.clientY);
-}
+};
 
-function showDiaries(){
+onValue(diariesRef,function(snapshot){
     const area = document.getElementById("diaryList");
     area.innerHTML = "";
 
-    const diaries =
-    JSON.parse(localStorage.getItem("diaries") || "[]");
+    const data = snapshot.val() || {};
+    const list = Object.entries(data);
 
-    diaries.forEach(function(d){
+    list.sort(function(a,b){
+        return b[1].time - a[1].time;
+    });
+
+    list.forEach(function(item){
+        const key = item[0];
+        const d = item[1];
+
         const div = document.createElement("div");
         div.className = "diary";
-        div.innerText = d;
+
+        div.innerHTML =
+        d.date + "\n" +
+        d.user + "：\n" +
+        d.text +
+        "<br><br><button onclick=\"deleteDiary('" + key + "')\">削除</button>";
+
         area.appendChild(div);
     });
-}
+});
 
-function savePhoto(event){
+window.deleteDiary = function(key){
+    if(!confirm("この日記を消す？")){
+        return;
+    }
+
+    remove(ref(db,"diaries/" + key));
+};
+
+/* アルバム Firebase */
+const photosRef = ref(db,"photos");
+
+window.savePhoto = function(event){
     const file =
     document.getElementById("photoInput").files[0];
 
@@ -268,7 +305,7 @@ function savePhoto(event){
 
         img.onload = function(){
             const canvas = document.createElement("canvas");
-            const maxSize = 700;
+            const maxSize = 500;
 
             let width = img.width;
             let height = img.height;
@@ -290,27 +327,22 @@ function savePhoto(event){
             ctx.drawImage(img,0,0,width,height);
 
             const smallImage =
-            canvas.toDataURL("image/jpeg",0.75);
-
-            let photos =
-            JSON.parse(localStorage.getItem("photos") || "[]");
+            canvas.toDataURL("image/jpeg",0.65);
 
             const date =
             new Date().toLocaleDateString("ja-JP");
 
-            photos.unshift({
+            push(photosRef,{
                 user:currentUser,
                 date:date,
                 comment:comment,
-                image:smallImage
+                image:smallImage,
+                time:Date.now()
             });
-
-            localStorage.setItem("photos",JSON.stringify(photos));
 
             document.getElementById("photoInput").value = "";
             document.getElementById("photoComment").value = "";
 
-            showPhotos();
             burstHeart(event.clientX,event.clientY);
         };
 
@@ -318,16 +350,23 @@ function savePhoto(event){
     };
 
     reader.readAsDataURL(file);
-}
+};
 
-function showPhotos(){
+onValue(photosRef,function(snapshot){
     const area = document.getElementById("photoList");
     area.innerHTML = "";
 
-    const photos =
-    JSON.parse(localStorage.getItem("photos") || "[]");
+    const data = snapshot.val() || {};
+    const list = Object.entries(data);
 
-    photos.forEach(function(p,index){
+    list.sort(function(a,b){
+        return b[1].time - a[1].time;
+    });
+
+    list.forEach(function(item){
+        const key = item[0];
+        const p = item[1];
+
         const div = document.createElement("div");
         div.className = "photoCard";
 
@@ -336,28 +375,22 @@ function showPhotos(){
         p.date + " / " + p.user +
         "</div>" +
         "<img src='" + p.image + "'>" +
-        "<p>" + p.comment + "</p>" +
-        "<button onclick='deletePhoto(" + index + ")'>削除</button>";
+        "<p>" + (p.comment || "") + "</p>" +
+        "<button onclick=\"deletePhoto('" + key + "')\">削除</button>";
 
         area.appendChild(div);
     });
-}
+});
 
-function deletePhoto(index){
+window.deletePhoto = function(key){
     if(!confirm("この写真を消す？")){
         return;
     }
 
-    let photos =
-    JSON.parse(localStorage.getItem("photos") || "[]");
+    remove(ref(db,"photos/" + key));
+};
 
-    photos.splice(index,1);
-
-    localStorage.setItem("photos",JSON.stringify(photos));
-
-    showPhotos();
-}
-
+/* 演出 */
 function createHeart(){
     const heart = document.createElement("div");
     heart.className = "heart";
@@ -400,9 +433,6 @@ function burstHeart(x,y){
         },i*80);
     }
 }
-
-showDiaries();
-showPhotos();
 
 setInterval(createHeart,900);
 </script></body>
