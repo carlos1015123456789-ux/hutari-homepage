@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>交換日記</title>
+
+<style>
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  font-family:sans-serif;
+  background:linear-gradient(180deg,#fff1f6,#ffe6ef);
+  color:#333;
+  overflow-x:hidden;
+}
+
+.heart-bg{
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  overflow:hidden;
+  z-index:0;
+}
+
+.heart{
+  position:absolute;
+  color:rgba(255,105,150,.35);
+  font-size:24px;
+  animation:floatHeart 10s linear infinite;
+}
+
+@keyframes floatHeart{
+  0%{
+    transform:translateY(100vh) scale(.8) rotate(0deg);
+    opacity:0;
+  }
+  15%{
+    opacity:1;
+  }
+  100%{
+    transform:translateY(-120px) scale(1.5) rotate(360deg);
+    opacity:0;
+  }
+}
+
+header{
+  position:relative;
+  z-index:1;
+  background:linear-gradient(135deg,#ff9db8,#ff76a3);
+  color:white;
+  text-align:center;
+  padding:18px;
+  font-size:26px;
+  font-weight:bold;
+}
+
+.container{
+  position:relative;
+  z-index:1;
+  max-width:800px;
+  margin:auto;
+  padding:12px;
+}
+
+.card{
+  background:rgba(255,255,255,.92);
+  border-radius:22px;
+  padding:16px;
+  margin-bottom:12px;
+  box-shadow:0 6px 18px rgba(255,120,160,.15);
+}
+
+textarea{
+  width:100%;
+  height:95px;
+  border:1px solid #ddd;
+  border-radius:15px;
+  padding:12px;
+  font-size:16px;
+  resize:none;
+}
+
+button{
+  border:none;
+  border-radius:15px;
+  padding:10px 20px;
+  background:linear-gradient(135deg,#ff8fab,#ff5f93);
+  color:white;
+  font-size:16px;
+  cursor:pointer;
+}
+
+button:hover{
+  opacity:.9;
+}
+
+.home-btn{
+  display:inline-block;
+  text-decoration:none;
+  margin-bottom:10px;
+}
+
+.entries-box{
+  max-height:300px;
+  overflow-y:auto;
+  padding-right:6px;
+}
+
+.entry{
+  border-left:5px solid #ff8fab;
+  padding:10px 0 10px 12px;
+  margin-top:12px;
+  background:#fff7fa;
+  border-radius:12px;
+}
+
+.entry p{
+  white-space:pre-wrap;
+  line-height:1.6;
+  margin:8px 0;
+}
+
+.date{
+  color:#999;
+  font-size:13px;
+}
+
+.name{
+  color:#ff5f93;
+  font-weight:bold;
+  font-size:17px;
+}
+
+.delete-btn{
+  background:#ccc;
+  font-size:14px;
+  padding:7px 12px;
+  margin-top:5px;
+}
+
+.empty{
+  color:#999;
+  text-align:center;
+}
+
+@media(max-width:600px){
+  header{
+    font-size:24px;
+    padding:15px;
+  }
+
+  .card{
+    padding:14px;
+  }
+
+  textarea{
+    height:85px;
+  }
+
+  .entries-box{
+    max-height:280px;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="heart-bg">
+  <div class="heart" style="left:5%;animation-delay:0s;">♡</div>
+  <div class="heart" style="left:18%;animation-delay:2s;">❤</div>
+  <div class="heart" style="left:31%;animation-delay:4s;">♡</div>
+  <div class="heart" style="left:45%;animation-delay:1s;">❤</div>
+  <div class="heart" style="left:59%;animation-delay:3s;">♡</div>
+  <div class="heart" style="left:73%;animation-delay:5s;">❤</div>
+  <div class="heart" style="left:87%;animation-delay:1.5s;">♡</div>
+  <div class="heart" style="left:96%;animation-delay:6s;">❤</div>
+</div>
+
+<header>📖 交換日記</header>
+
+<div class="container">
+
+<a href="index.html" class="home-btn">
+  <button>🏠 ホームへ戻る</button>
+</a>
+
+<div class="card">
+  <h2>今日の日記</h2>
+
+  <textarea id="diaryText" placeholder="今日の出来事を書こう♡"></textarea>
+
+  <br><br>
+
+  <button onclick="saveDiary()">投稿する</button>
+</div>
+
+<div class="card">
+  <h2>日記一覧</h2>
+
+  <div class="entries-box">
+    <div id="entries"></div>
+  </div>
+</div>
+
+</div>
+
+<script>
+const currentUser =
+localStorage.getItem("userName") || "名無し";
+
+function saveDiary(){
+  const text =
+  document.getElementById("diaryText").value.trim();
+
+  if(text === "") return;
+
+  const diaries =
+  JSON.parse(localStorage.getItem("diaries") || "[]");
+
+  diaries.unshift({
+    user: currentUser,
+    date: new Date().toLocaleString("ja-JP"),
+    text: text
+  });
+
+  localStorage.setItem("diaries", JSON.stringify(diaries));
+
+  document.getElementById("diaryText").value = "";
+
+  loadDiaries();
+  createHearts();
+}
+
+function deleteDiary(index){
+  if(!confirm("この日記を削除する？")) return;
+
+  const diaries =
+  JSON.parse(localStorage.getItem("diaries") || "[]");
+
+  diaries.splice(index, 1);
+
+  localStorage.setItem("diaries", JSON.stringify(diaries));
+
+  loadDiaries();
+}
+
+function escapeHtml(text){
+  return text
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+function loadDiaries(){
+  const diaries =
+  JSON.parse(localStorage.getItem("diaries") || "[]");
+
+  const container =
+  document.getElementById("entries");
+
+  if(diaries.length === 0){
+    container.innerHTML =
+    '<p class="empty">まだ日記はありません♡</p>';
+    return;
+  }
+
+  container.innerHTML = "";
+
+  diaries.forEach((diary,index)=>{
+    container.innerHTML += `
+      <div class="entry">
+        <div class="name">${escapeHtml(diary.user)}</div>
+        <div class="date">${escapeHtml(diary.date)}</div>
+        <p>${escapeHtml(diary.text)}</p>
+        <button class="delete-btn" onclick="deleteDiary(${index})">
+          🗑️ 削除
+        </button>
+      </div>
+    `;
+  });
+}
+
+function createHearts(){
+  for(let i=0;i<18;i++){
+    const heart =
+    document.createElement("div");
+
+    const marks = ["💖","💕","❤","✨"];
+    heart.innerHTML =
+    marks[Math.floor(Math.random() * marks.length)];
+
+    heart.style.position = "fixed";
+    heart.style.left = "50%";
+    heart.style.top = "45%";
+    heart.style.fontSize =
+    (18 + Math.random() * 20) + "px";
+    heart.style.pointerEvents = "none";
+    heart.style.zIndex = "9999";
+
+    document.body.appendChild(heart);
+
+    const x = (Math.random() - 0.5) * 320;
+    const y = -(80 + Math.random() * 260);
+
+    heart.animate([
+      {
+        transform:"translate(-50%, -50%) scale(1)",
+        opacity:1
+      },
+      {
+        transform:`translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) scale(1.8)`,
+        opacity:0
+      }
+    ],{
+      duration:1400,
+      easing:"ease-out"
+    });
+
+    setTimeout(()=>{
+      heart.remove();
+    },1400);
+  }
+}
+
+loadDiaries();
+</script>
+
+</body>
+</html>
